@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Address AutoComplete</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #fafbfc;
+        }
+        .address-form {
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 24px 32px 24px 32px;
+            max-width: 500px;
+            margin: 40px auto;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .address-form h2 {
+            margin-top: 0;
+            font-size: 1.2em;
+            letter-spacing: 1px;
+            color: #333;
+        }
+        .form-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+        .form-row label {
+            flex: 0 0 180px;
+            font-size: 0.98em;
+            color: #444;
+        }
+        .form-row input {
+            flex: 1;
+            padding: 7px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1em;
+        }
+    </style>
+    <!-- Azure Maps Web SDK CSS -->
+    <link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.css" type="text/css">
+</head>
+<body>
+    <form class="address-form" autocomplete="off">
+        <h2>ADDRESS</h2>
+        <div class="form-row" style="position:relative;">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="name" autocomplete="off" placeholder="Start typing address...">
+            <ul id="suggestions" style="display:none; position:absolute; left:180px; top:38px; z-index:10; background:#fff; border:1px solid #ccc; border-radius:4px; width:calc(100% - 190px); max-height:220px; overflow-y:auto; box-shadow:0 2px 8px rgba(0,0,0,0.12); list-style:none; margin:0; padding:0;"></ul>
+        </div>
+        <div class="form-row">
+            <label for="street1">Address 1: Street 1</label>
+            <input type="text" id="street1" name="street1">
+        </div>
+        <div class="form-row">
+            <label for="city">Address 1: City</label>
+            <input type="text" id="city" name="city">
+        </div>
+        <div class="form-row">
+            <label for="state">Address 1: State/Province</label>
+            <input type="text" id="state" name="state">
+        </div>
+        <div class="form-row">
+            <label for="zip">Address 1: ZIP/Postal Code</label>
+            <input type="text" id="zip" name="zip">
+        </div>
+        <div class="form-row">
+            <label for="country">Address 1: Country/Region</label>
+            <input type="text" id="country" name="country">
+        </div>
+    </form>
+    <!-- Azure Maps Web SDK -->
+    <script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/2/atlas.min.js"></script>
+    <script>
+    // TODO: Insert your Azure Maps subscription key below
+    const subscriptionKey = 'YOUR_AZURE_MAPS_KEY_HERE'; // <-- Replace with your Azure Maps key
+    const nameInput = document.getElementById('name');
+    const suggestionsList = document.getElementById('suggestions');
+    let debounceTimeout;
+
+    nameInput.addEventListener('input', function() {
+        const query = this.value.trim();
+        if (debounceTimeout) clearTimeout(debounceTimeout);
+        if (query.length < 3) {
+            suggestionsList.style.display = 'none';
+            return;
+        }
+        debounceTimeout = setTimeout(() => {
+            fetch(`https://atlas.microsoft.com/search/address/json?api-version=1.0&subscription-key=${subscriptionKey}&typeahead=true&limit=8&countrySet=IN&countrySet=US&language=en-US&query=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    suggestionsList.innerHTML = '';
+                    if (data.results && data.results.length > 0) {
+                        data.results.forEach(result => {
+                            const li = document.createElement('li');
+                            li.style.padding = '8px 12px';
+                            li.style.cursor = 'pointer';
+                            li.onmouseover = () => li.style.background = '#f0f0f0';
+                            li.onmouseout = () => li.style.background = '#fff';
+                            li.textContent = result.address.freeformAddress;
+                            li.onclick = () => {
+                                nameInput.value = result.address.freeformAddress;
+                                suggestionsList.style.display = 'none';
+                                // Fill other fields
+                                document.getElementById('street1').value = result.address.streetNumber ? `${result.address.streetNumber} ${result.address.streetName || ''}`.trim() : (result.address.streetName || '');
+                                document.getElementById('city').value = result.address.municipality || '';
+                                document.getElementById('state').value = result.address.countrySubdivision || '';
+                                document.getElementById('zip').value = result.address.postalCode || '';
+                                document.getElementById('country').value = result.address.country || '';
+                            };
+                            suggestionsList.appendChild(li);
+                        });
+                        suggestionsList.style.display = 'block';
+                    } else {
+                        suggestionsList.style.display = 'none';
+                    }
+                });
+        }, 250);
+    });
+    // Hide suggestions on click outside
+    document.addEventListener('click', function(e) {
+        if (!suggestionsList.contains(e.target) && e.target !== nameInput) {
+            suggestionsList.style.display = 'none';
+        }
+    });
+    </script>
+</body>
+</html>
